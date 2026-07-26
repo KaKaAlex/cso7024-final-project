@@ -1,0 +1,6 @@
+# The Northwind delivery-tracking service uses only the Python standard
+# library, so it has no runtime dependencies.
+#
+# You will add your own testing dependency when you build the automated test
+# suite in step 3 of the brief. Pin it here when you do, for example:
+# pytest>=8,<9
