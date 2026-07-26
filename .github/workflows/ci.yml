@@ -1,4 +1,4 @@
-name: Northwind CI
+name: Northwind CI/CD
 
 on:
   push:
@@ -10,10 +10,11 @@ on:
 
 permissions:
   contents: read
+  packages: write
 
 jobs:
-  test:
-    name: Build and test
+  build-test-container:
+    name: Build, test and containerise
     runs-on: ubuntu-latest
 
     steps:
@@ -34,3 +35,18 @@ jobs:
 
       - name: Run automated tests
         run: python -m pytest -v
+
+      - name: Build container image
+        run: docker build -t northwind-delivery:${{ github.sha }} .
+
+      - name: Log in to GitHub Container Registry
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Publish container image
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          docker tag northwind-delivery:${{ github.sha }} ghcr.io/kakaalex/cso7024-final-project:${{ github.sha }}
+          docker tag northwind-delivery:${{ github.sha }} ghcr.io/kakaalex/cso7024-final-project:latest
+          docker push ghcr.io/kakaalex/cso7024-final-project:${{ github.sha }}
+          docker push ghcr.io/kakaalex/cso7024-final-project:latest
