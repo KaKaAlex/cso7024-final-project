@@ -1,111 +1,262 @@
-# Northwind Logistics — Delivery Tracking Service (CSO7024 Final Project starter)
+# Northwind Logistics Delivery Tracking Service
 
-This is the starter application for the **CSO7024 DevOps** final project. It is
-a small, working delivery-tracking web service for the fictional company **Northwind
-Logistics**. The scenario is described below; the full Final Project brief on Canvas
-sets out exactly what you must build and how it is marked.
+This repository contains the Northwind Logistics delivery-tracking application and the DevOps workflow developed for the CSO7024 final project.
 
-Your task is to wrap a complete DevOps toolchain around this service: version
-control, automated tests, a Continuous Integration and Continuous Deployment
-(CI/CD) pipeline, configuration management or Infrastructure as Code, and
-containerisation with orchestration. **Keep changes to the application itself
-modest** — the focus of the project is the workflow around the code, not new
-features.
+The solution integrates:
 
-## Scenario
+- Git and GitHub pull-request workflow
+- Automated testing with pytest
+- GitHub Actions CI/CD
+- Ansible environment automation
+- Docker containerisation
+- Kubernetes orchestration with Minikube
 
-Northwind Logistics is the mid-sized European logistics provider from the module's
-case studies. Among its systems is the delivery-tracking service in this
-repository, which lets operators and customers check the status of a parcel in
-transit. Like the rest of Northwind's platform, it is deployed frequently and is
-expected to be reliable, so the team wants it put on a firm DevOps footing:
-automated testing, a repeatable build-and-deploy pipeline, a reproducible
-environment, and a containerised, orchestrated deployment. Acting as the DevOps
-engineer for this service, you will build that toolchain around the provided
-application and evaluate it in a technical report.
+## Application endpoints
 
-## What the service does
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | `/` | Service information |
+| GET | `/health` | Health status |
+| GET | `/deliveries` | All delivery records |
+| GET | `/deliveries/{id}` | A specific delivery or HTTP 404 |
 
-It exposes a small HTTP API for checking the status of deliveries. The data is
-held in memory, so the service runs with no database or other external
-dependency.
+The application stores its data in memory and has no external database.
 
-| Method | Path                | Description                                  |
-| ------ | ------------------- | -------------------------------------------- |
-| GET    | `/`                 | Service information and the list of endpoints |
-| GET    | `/health`           | Health check, always returns HTTP 200         |
-| GET    | `/deliveries`       | All deliveries, as JSON                        |
-| GET    | `/deliveries/{id}`  | One delivery as JSON, or HTTP 404 if unknown  |
+## Architecture
 
-The `/health` endpoint exists so you can wire up a container health check and
-Kubernetes readiness and liveness probes.
+```text
+Developer
+   |
+   | Git feature branch and pull request
+   v
+GitHub Repository
+   |
+   | GitHub Actions
+   v
+Install dependencies -> Compile -> Test -> Build Docker image
+   |
+   | Push on main
+   v
+GitHub Container Registry
+   |
+   | Local image loaded into Minikube
+   v
+Kubernetes Deployment (2 Pods) -> NodePort Service -> Host
+```
 
-## Before you start
+## Project structure
 
-You need **Python 3.10 or newer** and **Git**. To complete the later steps of the
-brief you will also need **Docker** and a single-node Kubernetes tool (**minikube**
-or **k3s**), and, depending on the path you choose, **Terraform** or **Ansible**.
-You do not need any paid cloud accounts.
+```text
+.github/workflows/ci.yml   CI/CD pipeline
+ansible/                   Ansible inventory and playbook
+app/                       Python application
+kubernetes/                Deployment and Service manifests
+tests/                     Automated test suite
+.dockerignore              Docker build exclusions
+Dockerfile                 Container image definition
+requirements.txt           Pinned testing dependency
+run.py                     Local application entry point
+```
 
-## Run it locally
+## Prerequisites
 
-The service uses only the Python standard library, so there is nothing to install
-to run it:
+- Python 3.10 or newer
+- Git
+- Docker Desktop
+- kubectl
+- Minikube
+- WSL with Ansible
 
-```bash
+## Run locally
+
+```powershell
 python -m app
-# or, equivalently:
-python run.py
 ```
 
-Then, in another terminal:
+The service listens on port `8000`.
 
-```bash
-curl http://localhost:8000/health
-curl http://localhost:8000/deliveries
-curl http://localhost:8000/deliveries/NL-1002
+Test it from a second terminal:
+
+```powershell
+Invoke-RestMethod http://localhost:8000/health
+Invoke-RestMethod http://localhost:8000/deliveries
+Invoke-RestMethod http://localhost:8000/deliveries/NL-1002
 ```
 
-The port can be changed with the `PORT` environment variable, for example
-`PORT=9000 python -m app`.
+## Automated testing
 
-## Project layout
+Install the pinned testing dependency:
 
-```
-app/
-  __main__.py   lets you run the service with `python -m app`
-  service.py    the HTTP request handler and server
-  data.py       the in-memory delivery records
-run.py          convenience entry point (`python run.py`)
-requirements.txt
+```powershell
+python -m pip install -r requirements.txt
 ```
 
-## Deploying this service locally: two things to plan for
+Run all tests:
 
-These points trip people up when building a pipeline around a service that runs
-on a single-node local cluster. Neither is solved for you; decide how you will
-handle each, and explain your choice in your report.
+```powershell
+python -m pytest -v
+```
 
-**A cloud-hosted CI runner cannot reach your local cluster.** GitHub Actions and
-GitLab's hosted runners run on the provider's infrastructure, with no network
-route to a minikube or k3s cluster on your own machine. A hosted pipeline can
-build the image, run the tests and push the image to a container registry, but
-applying it to your cluster (for example, with `kubectl apply`) happens on your
-machine. You can meet the brief's deployment stage either by having the pipeline
-publish the image to a registry that your local deployment then pulls from, or by
-running a self-hosted runner if you want the pipeline itself to deploy.
+The suite contains unit tests for the in-memory data functions and integration tests for the HTTP API.
 
-**"Automating the environment" with no cloud account.** Everything here runs
-locally, so be deliberate about what your configuration management or
-Infrastructure as Code actually does. Ansible fits naturally for installing
-dependencies and configuring the environment the service runs in. If you use
-Terraform, be clear about which local resources it manages — for example, Docker
-or Kubernetes objects through the relevant provider — rather than cloud
-infrastructure that is not part of this setup, and keep the boundary between this
-step and your Kubernetes deployment explicit so the two do not overlap.
+## Git workflow
 
-## A note on dependencies and testing
+Changes are developed on short-lived feature branches:
 
-The application has no runtime dependencies. When you build your automated test
-suite (step 3 of the brief), add your testing tool — for example `pytest` — to
-`requirements.txt` and pin it.
+```powershell
+git switch -c feature/example
+git add .
+git commit -m "Describe the change"
+git push -u origin feature/example
+```
+
+Each feature branch is reviewed through a GitHub pull request before being merged into `main`.
+
+## CI/CD pipeline
+
+The GitHub Actions workflow runs on:
+
+- Pull requests targeting `main`
+- Pushes to `main`
+
+The workflow:
+
+1. Checks out the repository
+2. Configures Python 3.11
+3. Installs dependencies
+4. Compiles the Python source
+5. Runs all automated tests
+6. Builds the Docker image
+7. Publishes the image to GitHub Container Registry after a successful push to `main`
+
+Published image:
+
+```text
+ghcr.io/kakaalex/cso7024-final-project:latest
+```
+
+## Ansible automation
+
+The Ansible playbook creates a reproducible local environment in WSL. It:
+
+- Creates the deployment directory
+- Copies the application
+- Creates a Python virtual environment
+- Installs pinned dependencies
+- Configures port `8000`
+- Verifies the deployed application
+
+Check the syntax:
+
+```powershell
+wsl ansible-playbook -i ansible/inventory.ini ansible/playbook.yml --syntax-check
+```
+
+Run the playbook:
+
+```powershell
+wsl ansible-playbook -i ansible/inventory.ini ansible/playbook.yml
+```
+
+Running the playbook again should report `changed=0` and `failed=0`, demonstrating idempotency.
+
+## Docker deployment
+
+Build the image:
+
+```powershell
+docker build -t northwind-delivery:1.0 .
+```
+
+Run it:
+
+```powershell
+docker run --rm -p 8000:8000 northwind-delivery:1.0
+```
+
+Test it from a second terminal:
+
+```powershell
+Invoke-RestMethod http://localhost:8000/health
+```
+
+The container runs as a numeric non-root user and includes a Docker health check.
+
+## Kubernetes deployment
+
+Start Minikube:
+
+```powershell
+minikube start --driver=docker
+```
+
+Build and load the local image:
+
+```powershell
+docker build -t northwind-delivery:1.0 .
+minikube image load northwind-delivery:1.0 --overwrite=true
+```
+
+Validate the manifests:
+
+```powershell
+kubectl apply --dry-run=client -f kubernetes/
+```
+
+Deploy:
+
+```powershell
+kubectl apply -f kubernetes/
+kubectl rollout status deployment/northwind-delivery
+```
+
+Check the resources:
+
+```powershell
+kubectl get pods
+kubectl get service northwind-delivery
+```
+
+The Deployment runs two replicas with:
+
+- Readiness and liveness probes
+- CPU and memory controls
+- Non-root execution
+- Disabled privilege escalation
+- Dropped Linux capabilities
+
+Access the service:
+
+```powershell
+kubectl port-forward service/northwind-delivery 8080:80
+```
+
+From a second terminal:
+
+```powershell
+Invoke-RestMethod http://localhost:8080/health
+Invoke-RestMethod http://localhost:8080/deliveries/NL-1002
+```
+
+Stop the port forward with `Ctrl + C`.
+
+## Cleanup
+
+Remove the Kubernetes resources:
+
+```powershell
+kubectl delete -f kubernetes/
+```
+
+Stop Minikube:
+
+```powershell
+minikube stop
+```
+
+## Limitations
+
+- Delivery data is held in memory and is not persistent.
+- The Kubernetes deployment uses a local Minikube cluster.
+- The CI runner publishes the image but cannot directly access the local Minikube cluster.
+- The solution does not include production TLS, authentication or monitoring.
