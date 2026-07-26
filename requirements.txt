@@ -4,3 +4,4 @@
 # You will add your own testing dependency when you build the automated test
 # suite in step 3 of the brief. Pin it here when you do, for example:
 # pytest>=8,<9
+pytest==9.1.1
