@@ -1,0 +1,59 @@
+---
+- name: Configure Northwind delivery service
+  hosts: local
+  gather_facts: true
+
+  vars:
+    deployment_dir: "{{ ansible_env.HOME }}/northwind-delivery"
+    virtualenv_dir: "{{ deployment_dir }}/venv"
+
+  tasks:
+    - name: Create deployment directory
+      ansible.builtin.file:
+        path: "{{ deployment_dir }}"
+        state: directory
+        mode: "0755"
+
+    - name: Create application directory
+      ansible.builtin.file:
+        path: "{{ deployment_dir }}/app"
+        state: directory
+        mode: "0755"
+
+    - name: Copy application package
+      ansible.builtin.copy:
+        src: ../app/
+        dest: "{{ deployment_dir }}/app/"
+
+    - name: Copy project files
+      ansible.builtin.copy:
+        src: "../{{ item }}"
+        dest: "{{ deployment_dir }}/{{ item }}"
+        mode: "0644"
+      loop:
+        - run.py
+        - requirements.txt
+
+    - name: Create Python virtual environment
+      ansible.builtin.command:
+        cmd: "python3 -m venv {{ virtualenv_dir }}"
+        creates: "{{ virtualenv_dir }}/bin/python"
+
+    - name: Install Python dependencies
+      ansible.builtin.pip:
+        requirements: "{{ deployment_dir }}/requirements.txt"
+        virtualenv: "{{ virtualenv_dir }}"
+
+    - name: Configure application port
+      ansible.builtin.copy:
+        content: "PORT=8000\n"
+        dest: "{{ deployment_dir }}/.env"
+        mode: "0644"
+
+    - name: Verify the deployed application
+      ansible.builtin.command:
+        cmd: >-
+          {{ virtualenv_dir }}/bin/python -c
+          "from app import data; assert len(data.all_deliveries()) == 5"
+        chdir: "{{ deployment_dir }}"
+      changed_when: false
